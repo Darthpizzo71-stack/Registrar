@@ -6,7 +6,7 @@ export const AnalyticsDashboard: React.FC = () => {
   const [votingStats, setVotingStats] = useState<any>(null)
   const [documentStats, setDocumentStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedMeetingId, setSelectedMeetingId] = useState<number | undefined>()
+  const [selectedMeetingId] = useState<number | undefined>()
 
   useEffect(() => {
     loadAnalytics()

@@ -6,7 +6,7 @@ interface VideoPlayerProps {
 }
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({ meeting }) => {
-  const [error, setError] = useState<string | null>(null)
+  const [error] = useState<string | null>(null)
 
   if (!meeting.video_url && !meeting.video_embed_code) {
     return null
