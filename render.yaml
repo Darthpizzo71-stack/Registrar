@@ -1,12 +1,11 @@
-services:
-  # PostgreSQL Database
-  - type: pserv
-    name: escribe-db
-    runtime: postgres
-    plan: free
+databases:
+  - name: escribe-db
     databaseName: escribe
     user: escribe_user
+    plan: free
+    region: oregon  # Change to your preferred region (oregon, frankfurt, singapore, etc.)
 
+services:
   # Django Backend
   - type: web
     name: escribe-backend
