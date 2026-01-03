@@ -31,8 +31,8 @@ services:
   - type: web
     name: escribe-frontend
     runtime: static
-    buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: frontend/dist
+    buildCommand: cd frontend && npm install && npm run build && mv dist ../dist
+    staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
         value: https://escribe-backend.onrender.com/api
