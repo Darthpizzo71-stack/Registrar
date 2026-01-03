@@ -11,7 +11,7 @@ services:
     name: escribe-backend
     runtime: python
     buildCommand: cd backend && pip install --upgrade pip setuptools && pip install -r requirements.txt && python manage.py collectstatic --noinput
-    startCommand: gunicorn backend.escribe.wsgi:application --bind 0.0.0.0:$PORT
+    startCommand: cd backend && gunicorn escribe.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
       - key: SECRET_KEY
         generateValue: true
