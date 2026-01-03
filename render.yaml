@@ -9,7 +9,7 @@ services:
   - type: web
     name: escribe-backend
     runtime: python
-    plan: free  # Use 'starter' for production ($7/month)
+    plan: starter  # Use 'standard' or 'pro' for production
     buildCommand: cd backend && pip install --upgrade pip setuptools && pip install -r requirements.txt && python manage.py collectstatic --noinput
     startCommand: cd backend && bash start.sh
     envVars:
@@ -33,7 +33,6 @@ services:
   - type: web
     name: escribe-frontend
     runtime: static
-    plan: free
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
     envVars:
