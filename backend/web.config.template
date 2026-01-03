@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <handlers>
+      <add name="httpPlatformHandler" path="*" verb="*" modules="httpPlatformHandler" resourceType="Unspecified" />
+    </handlers>
+    <httpPlatform processPath="C:\path\to\Escribe\backend\venv\Scripts\python.exe"
+                  arguments="-m waitress --host=127.0.0.1 --port=%HTTP_PLATFORM_PORT% --threads=4 escribe.wsgi:application"
+                  stdoutLogEnabled="true"
+                  stdoutLogFile="C:\path\to\Escribe\backend\logs\stdout.log"
+                  startupTimeLimit="60"
+                  requestTimeout="00:04:00">
+      <environmentVariables>
+        <environmentVariable name="DJANGO_SETTINGS_MODULE" value="escribe.settings" />
+        <environmentVariable name="PYTHONPATH" value="C:\path\to\Escribe\backend" />
+        <!-- Add your environment variables here -->
+        <!-- Example:
+        <environmentVariable name="SECRET_KEY" value="your-production-secret-key" />
+        <environmentVariable name="DEBUG" value="False" />
+        <environmentVariable name="ALLOWED_HOSTS" value="yourdomain.com,www.yourdomain.com" />
+        <environmentVariable name="DB_ENGINE" value="postgresql" />
+        <environmentVariable name="DB_NAME" value="escribe" />
+        <environmentVariable name="DB_USER" value="escribe_user" />
+        <environmentVariable name="DB_PASSWORD" value="your-password" />
+        <environmentVariable name="DB_HOST" value="localhost" />
+        <environmentVariable name="DB_PORT" value="5432" />
+        -->
+      </environmentVariables>
+    </httpPlatform>
+    
+    <!-- URL Rewrite for static files -->
+    <rewrite>
+      <rules>
+        <rule name="Static Files" stopProcessing="true">
+          <match url="^static/(.*)$" />
+          <action type="Rewrite" url="/staticfiles/{R:1}" />
+        </rule>
+        <rule name="Media Files" stopProcessing="true">
+          <match url="^media/(.*)$" />
+          <action type="Rewrite" url="/media/{R:1}" />
+        </rule>
+      </rules>
+    </rewrite>
+    
+    <!-- Static file handling -->
+    <staticContent>
+      <mimeMap fileExtension=".json" mimeType="application/json" />
+      <mimeMap fileExtension=".woff" mimeType="application/font-woff" />
+      <mimeMap fileExtension=".woff2" mimeType="application/font-woff2" />
+    </staticContent>
+    
+    <!-- Security headers -->
+    <httpProtocol>
+      <customHeaders>
+        <add name="X-Content-Type-Options" value="nosniff" />
+        <add name="X-Frame-Options" value="DENY" />
+        <add name="X-XSS-Protection" value="1; mode=block" />
+      </customHeaders>
+    </httpProtocol>
+  </system.webServer>
+</configuration>
+
