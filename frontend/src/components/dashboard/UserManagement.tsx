@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiService } from '../../services/api'
 import { toast } from 'react-toastify'
-import { User } from '../../types'
 
 const ROLE_OPTIONS = [
   { value: 'clerk', label: 'Clerk/Admin' },

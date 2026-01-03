@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiService } from '../../services/api'
 import { format } from 'date-fns'
 import { toast } from 'react-toastify'
-import { Meeting } from '../../types'
 
 export default function MeetingsManagement() {
   const queryClient = useQueryClient()
