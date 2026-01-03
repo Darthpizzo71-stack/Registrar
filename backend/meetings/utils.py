@@ -100,6 +100,83 @@ def generate_agenda_pdf(meeting: Meeting) -> BytesIO:
     return buffer
 
 
+def generate_meeting_ics(meeting: Meeting, base_url: str = 'https://escribe-backend.onrender.com') -> str:
+    """
+    Generate ICS (iCalendar) file content for a meeting.
+    
+    Args:
+        meeting: Meeting instance
+        base_url: Base URL for the application (for links)
+    
+    Returns:
+        ICS file content as string
+    """
+    from icalendar import Calendar, Event
+    from datetime import datetime, timedelta
+    from django.utils import timezone
+    
+    cal = Calendar()
+    cal.add('prodid', '-//Escribe Meeting Management//EN')
+    cal.add('version', '2.0')
+    cal.add('calscale', 'GREGORIAN')
+    cal.add('method', 'PUBLISH')
+    
+    event = Event()
+    event.add('summary', meeting.title)
+    event.add('description', meeting.description or f"{meeting.meeting_type.title()} Meeting")
+    event.add('location', meeting.location)
+    
+    # Combine date and time
+    meeting_datetime = timezone.make_aware(
+        timezone.datetime.combine(meeting.date, meeting.time)
+    )
+    
+    # Set start time
+    event.add('dtstart', meeting_datetime)
+    
+    # Set end time (default to 2 hours, can be customized)
+    end_datetime = meeting_datetime + timedelta(hours=2)
+    event.add('dtend', end_datetime)
+    
+    # Add timestamps
+    event.add('dtstamp', timezone.now())
+    event.add('created', meeting.created_at)
+    if meeting.updated_at:
+        event.add('last-modified', meeting.updated_at)
+    
+    # Add UID (unique identifier)
+    event.add('uid', f'meeting-{meeting.id}@{base_url.replace("https://", "").replace("http://", "")}')
+    
+    # Add status
+    if meeting.status == 'published':
+        event.add('status', 'CONFIRMED')
+    elif meeting.status == 'draft':
+        event.add('status', 'TENTATIVE')
+    elif meeting.status == 'cancelled':
+        event.add('status', 'CANCELLED')
+    
+    # Add URL to meeting
+    event.add('url', f'{base_url}/api/meetings/{meeting.id}/')
+    
+    # Add organizer (created_by)
+    if meeting.created_by:
+        event.add('organizer', f'MAILTO:{meeting.created_by.email or "noreply@example.com"}')
+    
+    # Add categories
+    event.add('categories', [meeting.meeting_type])
+    
+    # Add alarm/reminder (24 hours before)
+    alarm = Event()
+    alarm.add('action', 'DISPLAY')
+    alarm.add('description', f'Reminder: {meeting.title}')
+    alarm.add('trigger', timedelta(hours=-24))
+    event.add_component(alarm)
+    
+    cal.add_component(event)
+    
+    return cal.to_ical().decode('utf-8')
+
+
 
 
 

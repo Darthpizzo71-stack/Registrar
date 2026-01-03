@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiService } from '../../services/api'
+import VotingComponent from './VotingComponent'
 
 export default function AgendaItemsManagement() {
   const { data, isLoading } = useQuery({
@@ -26,6 +27,9 @@ export default function AgendaItemsManagement() {
               <p className="text-gray-600 mb-2">{item.description}</p>
               {item.department && (
                 <p className="text-sm text-gray-500">Department: {item.department}</p>
+              )}
+              {item.requires_vote && (
+                <VotingComponent agendaItem={item} meetingId={item.meeting} />
               )}
             </div>
           ))}

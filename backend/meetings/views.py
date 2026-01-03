@@ -62,6 +62,10 @@ class MeetingViewSet(viewsets.ModelViewSet):
         if not request.user.can_create_agenda():
             return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
         
+        # Auto-calculate posting deadline if not set
+        if not meeting.posting_deadline:
+            meeting.posting_deadline = meeting.calculate_posting_deadline()
+        
         meeting.publish()
         serializer = self.get_serializer(meeting)
         return Response(serializer.data)
@@ -78,6 +82,45 @@ class MeetingViewSet(viewsets.ModelViewSet):
         response = HttpResponse(pdf_buffer.read(), content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="agenda_{meeting.id}.pdf"'
         return response
+    
+    @action(detail=True, methods=['get'])
+    def ics_export(self, request, pk=None):
+        """Export meeting as ICS (iCalendar) file."""
+        from django.http import HttpResponse
+        from .utils import generate_meeting_ics
+        
+        meeting = self.get_object()
+        
+        # Get base URL from request
+        base_url = request.build_absolute_uri('/')[:-1]
+        
+        ics_content = generate_meeting_ics(meeting, base_url)
+        
+        response = HttpResponse(ics_content, content_type='text/calendar')
+        response['Content-Disposition'] = f'attachment; filename="meeting_{meeting.id}.ics"'
+        return response
+    
+    @action(detail=True, methods=['get'])
+    def deadline_status(self, request, pk=None):
+        """Get posting deadline status for a meeting."""
+        meeting = self.get_object()
+        
+        # Auto-calculate deadline if not set
+        if not meeting.posting_deadline:
+            meeting.posting_deadline = meeting.calculate_posting_deadline()
+            meeting.save()
+        
+        status_info = {
+            'posting_deadline': meeting.posting_deadline,
+            'posted_at': meeting.posted_at,
+            'status': meeting.get_deadline_status(),
+            'is_met': meeting.is_posting_deadline_met(),
+            'meeting_datetime': timezone.make_aware(
+                timezone.datetime.combine(meeting.date, meeting.time)
+            )
+        }
+        
+        return Response(status_info)
 
 
 class AgendaSectionViewSet(viewsets.ModelViewSet):
@@ -180,4 +223,108 @@ class VoteViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['agenda_item', 'official', 'vote']
+    
+    def get_queryset(self):
+        """Filter votes based on user permissions."""
+        queryset = Vote.objects.select_related('agenda_item', 'official', 'agenda_item__meeting')
+        user = self.request.user
+        
+        # Public users can only see votes from published meetings
+        if not user.is_authenticated or user.role == 'public':
+            queryset = queryset.filter(
+                agenda_item__meeting__status='published',
+                agenda_item__meeting__published_at__isnull=False
+            )
+        
+        return queryset
+    
+    def perform_create(self, serializer):
+        """Record vote - ensure official can only vote for themselves."""
+        user = self.request.user
+        
+        # Only officials can vote
+        if user.role not in ['official', 'clerk', 'it_admin']:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only elected officials can vote.")
+        
+        # Ensure user is voting as themselves
+        official = serializer.validated_data.get('official')
+        if official != user:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("You can only record votes for yourself.")
+        
+        serializer.save(official=user)
+    
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        """Get vote summary for an agenda item."""
+        agenda_item_id = request.query_params.get('agenda_item')
+        if not agenda_item_id:
+            return Response(
+                {'error': 'agenda_item parameter is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            from .models import AgendaItem
+            agenda_item = AgendaItem.objects.get(id=agenda_item_id)
+        except AgendaItem.DoesNotExist:
+            return Response(
+                {'error': 'Agenda item not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        votes = Vote.objects.filter(agenda_item=agenda_item)
+        
+        summary = {
+            'agenda_item': agenda_item.id,
+            'agenda_item_title': agenda_item.title,
+            'total_votes': votes.count(),
+            'yes': votes.filter(vote='yes').count(),
+            'no': votes.filter(vote='no').count(),
+            'abstain': votes.filter(vote='abstain').count(),
+            'absent': votes.filter(vote='absent').count(),
+            'votes': VoteSerializer(votes, many=True).data
+        }
+        
+        return Response(summary)
+    
+    @action(detail=False, methods=['get'])
+    def by_meeting(self, request):
+        """Get all votes for a meeting."""
+        meeting_id = request.query_params.get('meeting')
+        if not meeting_id:
+            return Response(
+                {'error': 'meeting parameter is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            meeting = Meeting.objects.get(id=meeting_id)
+        except Meeting.DoesNotExist:
+            return Response(
+                {'error': 'Meeting not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get all agenda items for the meeting
+        agenda_items = meeting.agenda_items.filter(requires_vote=True)
+        votes = Vote.objects.filter(agenda_item__in=agenda_items)
+        
+        # Group by agenda item
+        result = {}
+        for item in agenda_items:
+            item_votes = votes.filter(agenda_item=item)
+            result[item.id] = {
+                'agenda_item': item.id,
+                'agenda_item_title': item.title,
+                'total_votes': item_votes.count(),
+                'yes': item_votes.filter(vote='yes').count(),
+                'no': item_votes.filter(vote='no').count(),
+                'abstain': item_votes.filter(vote='abstain').count(),
+                'absent': item_votes.filter(vote='absent').count(),
+                'votes': VoteSerializer(item_votes, many=True).data
+            }
+        
+        return Response(result)
 

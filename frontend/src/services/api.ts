@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosError } from 'axios'
-import { User, Meeting, AgendaItem, Minute, Attachment, PaginatedResponse } from '../types'
+import { User, Meeting, AgendaItem, Minute, Attachment, Vote, PaginatedResponse } from '../types'
 
 // Use relative URL to leverage Vite proxy, or use env var if set
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
@@ -131,6 +131,59 @@ class ApiService {
 
   async approveMinute(id: number): Promise<Minute> {
     const response = await this.client.post(`/meetings/minutes/${id}/approve/`)
+    return response.data
+  }
+
+  // Votes
+  async getVotes(params?: {
+    agenda_item?: number
+    official?: number
+    vote?: string
+  }): Promise<PaginatedResponse<Vote>> {
+    const response = await this.client.get('/meetings/votes/', { params })
+    return response.data
+  }
+
+  async recordVote(agendaItemId: number, vote: 'yes' | 'no' | 'abstain' | 'absent', officialId: number): Promise<Vote> {
+    const response = await this.client.post('/meetings/votes/', {
+      agenda_item: agendaItemId,
+      official: officialId,
+      vote
+    })
+    return response.data
+  }
+
+  async getVoteSummary(agendaItemId: number): Promise<any> {
+    const response = await this.client.get('/meetings/votes/summary/', {
+      params: { agenda_item: agendaItemId }
+    })
+    return response.data
+  }
+
+  async getMeetingVotes(meetingId: number): Promise<any> {
+    const response = await this.client.get('/meetings/votes/by_meeting/', {
+      params: { meeting: meetingId }
+    })
+    return response.data
+  }
+
+  // Calendar Export
+  async exportMeetingICS(meetingId: number): Promise<Blob> {
+    const response = await this.client.get(`/meetings/meetings/${meetingId}/ics_export/`, {
+      responseType: 'blob'
+    })
+    return response.data
+  }
+
+  async getDeadlineStatus(meetingId: number): Promise<any> {
+    const response = await this.client.get(`/meetings/meetings/${meetingId}/deadline_status/`)
+    return response.data
+  }
+
+  async getAgendaPDF(meetingId: number): Promise<Blob> {
+    const response = await this.client.get(`/meetings/meetings/${meetingId}/agenda_pdf/`, {
+      responseType: 'blob'
+    })
     return response.data
   }
 

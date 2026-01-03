@@ -68,6 +68,56 @@ class Meeting(models.Model):
     def is_published(self):
         """Check if meeting is published."""
         return self.status == 'published' and self.published_at is not None
+    
+    def calculate_posting_deadline(self, days_before=72):
+        """
+        Calculate posting deadline based on meeting date and type.
+        Default is 72 hours (3 days) before meeting for regular meetings.
+        Special/emergency meetings may have different requirements.
+        """
+        from datetime import timedelta
+        from django.utils import timezone
+        
+        meeting_datetime = timezone.make_aware(
+            timezone.datetime.combine(self.date, self.time)
+        )
+        
+        # Different deadlines for different meeting types
+        deadline_hours = {
+            'regular': 72,  # 3 days
+            'special': 24,  # 1 day
+            'workshop': 48,  # 2 days
+            'hearing': 72,  # 3 days
+            'emergency': 2,  # 2 hours (emergency meetings)
+        }
+        
+        hours_before = deadline_hours.get(self.meeting_type, days_before * 24)
+        deadline = meeting_datetime - timedelta(hours=hours_before)
+        
+        return deadline
+    
+    def is_posting_deadline_met(self):
+        """Check if posting deadline has been met."""
+        if not self.posting_deadline:
+            return None  # No deadline set
+        
+        if self.posted_at:
+            return self.posted_at <= self.posting_deadline
+        
+        return timezone.now() <= self.posting_deadline
+    
+    def get_deadline_status(self):
+        """Get human-readable deadline status."""
+        if not self.posting_deadline:
+            return 'no_deadline'
+        
+        if self.posted_at and self.posted_at <= self.posting_deadline:
+            return 'met'
+        
+        if timezone.now() > self.posting_deadline:
+            return 'missed'
+        
+        return 'pending'
 
 
 class AgendaSection(models.Model):
