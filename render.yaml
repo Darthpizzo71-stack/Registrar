@@ -1,6 +1,6 @@
 services:
   # PostgreSQL Database
-  - type: pg
+  - type: postgres
     name: escribe-db
     databaseName: escribe
     user: escribe_user
