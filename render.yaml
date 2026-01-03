@@ -1,24 +1,24 @@
-databases:
-  - name: escribe-db
+services:
+  # PostgreSQL Database
+  - type: pserv
+    name: escribe-db
+    runtime: postgres
+    plan: free
     databaseName: escribe
     user: escribe_user
-    plan: free  # Use 'starter' for production ($7/month)
 
-services:
   # Django Backend
   - type: web
     name: escribe-backend
     runtime: python
-    plan: starter  # Use 'standard' or 'pro' for production
+    plan: free
     buildCommand: cd backend && pip install --upgrade pip setuptools && pip install -r requirements.txt && python manage.py collectstatic --noinput
-    startCommand: cd backend && bash start.sh
+    startCommand: cd backend && gunicorn escribe.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
       - key: SECRET_KEY
         generateValue: true
       - key: DEBUG
-        value: False
-      - key: DB_ENGINE
-        value: postgresql
+        value: "False"
       - key: DATABASE_URL
         fromDatabase:
           name: escribe-db
@@ -33,6 +33,7 @@ services:
   - type: web
     name: escribe-frontend
     runtime: static
+    plan: free
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
     envVars:
