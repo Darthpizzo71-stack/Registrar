@@ -10,7 +10,7 @@ services:
   - type: web
     name: escribe-backend
     runtime: python
-    buildCommand: cd backend && pip install --upgrade pip setuptools && pip install -r requirements.txt && python manage.py collectstatic --noinput
+    buildCommand: cd backend && pip install --upgrade pip setuptools && pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput
     startCommand: cd backend && gunicorn escribe.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
       - key: SECRET_KEY
