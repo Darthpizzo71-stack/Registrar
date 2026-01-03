@@ -20,8 +20,13 @@ export default function Layout({ children }: LayoutProps) {
       <header className="bg-white shadow-sm">
         <nav className="container mx-auto px-4 py-4" aria-label="Main navigation">
           <div className="flex items-center justify-between">
-            <Link to="/" className="text-2xl font-bold text-primary-700">
-              Registrar
+            <Link to="/" className="flex items-center gap-3 text-2xl font-bold text-primary-700 hover:text-primary-800 transition-colors">
+              <img 
+                src="/registrar-logo.png" 
+                alt="Registrar Logo" 
+                className="h-10 w-auto"
+              />
+              <span>Registrar</span>
             </Link>
             <div className="flex items-center gap-4">
               <Link

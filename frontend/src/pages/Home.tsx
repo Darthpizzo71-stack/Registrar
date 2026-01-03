@@ -17,9 +17,16 @@ export default function Home() {
   return (
     <div>
       <section className="mb-12">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          Welcome to Registrar
-        </h1>
+        <div className="flex items-center gap-4 mb-4">
+          <img 
+            src="/registrar-logo.png" 
+            alt="Registrar Logo" 
+            className="h-16 w-auto"
+          />
+          <h1 className="text-4xl font-bold text-gray-900">
+            Welcome to Registrar
+          </h1>
+        </div>
         <p className="text-xl text-gray-600 mb-8">
           Government Meeting Management System - View agendas, minutes, and public records
         </p>
