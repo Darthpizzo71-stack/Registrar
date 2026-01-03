@@ -10,7 +10,7 @@ services:
   - type: web
     name: escribe-backend
     runtime: python
-    buildCommand: cd backend && pip install --upgrade pip setuptools && pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput
+    buildCommand: cd backend && pip install --upgrade pip setuptools && pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput && python create_superuser.py
     startCommand: cd backend && gunicorn escribe.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
       - key: SECRET_KEY
@@ -25,6 +25,14 @@ services:
         value: escribe-backend.onrender.com
       - key: CORS_ALLOWED_ORIGINS
         value: https://escribe-frontend.onrender.com
+      - key: SUPERUSER_USERNAME
+        value: admin
+      - key: SUPERUSER_EMAIL
+        value: admin@example.com
+      - key: SUPERUSER_PASSWORD
+        generateValue: true
+      - key: SUPERUSER_ROLE
+        value: clerk
     healthCheckPath: /api/
 
   # React Frontend
