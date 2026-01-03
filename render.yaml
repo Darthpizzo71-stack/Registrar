@@ -1,11 +1,10 @@
-services:
-  # PostgreSQL Database
-  - type: postgres
-    name: escribe-db
+databases:
+  - name: escribe-db
     databaseName: escribe
     user: escribe_user
     plan: free  # Use 'starter' for production ($7/month)
 
+services:
   # Django Backend
   - type: web
     name: escribe-backend
@@ -40,4 +39,3 @@ services:
     envVars:
       - key: VITE_API_URL
         value: https://escribe-backend.onrender.com/api
-
