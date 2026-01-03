@@ -22,6 +22,9 @@ export interface Meeting {
   time: string
   location: string
   description?: string
+  video_url?: string
+  video_type?: 'youtube' | 'vimeo' | 'direct' | 'embed'
+  video_embed_code?: string
   published_at?: string
   posting_deadline?: string
   posted_at?: string

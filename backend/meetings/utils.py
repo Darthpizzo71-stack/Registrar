@@ -4,10 +4,13 @@ Utility functions for meeting management
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Image
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from io import BytesIO
 from .models import Meeting
+from docx import Document
+from docx.shared import Inches, Pt
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 
 def generate_agenda_pdf(meeting: Meeting) -> BytesIO:
@@ -98,6 +101,76 @@ def generate_agenda_pdf(meeting: Meeting) -> BytesIO:
     doc.build(story)
     buffer.seek(0)
     return buffer
+
+
+def generate_agenda_docx(meeting: Meeting) -> BytesIO:
+    """
+    Generate DOCX agenda for a meeting.
+    """
+    doc = Document()
+    
+    # Title
+    title = doc.add_heading(meeting.title, 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # Meeting info
+    info_para = doc.add_paragraph()
+    info_para.add_run(f"Date: {meeting.date}\n").bold = True
+    info_para.add_run(f"Time: {meeting.time}\n")
+    info_para.add_run(f"Location: {meeting.location}\n")
+    info_para.add_run(f"Type: {meeting.get_meeting_type_display()}\n")
+    info_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    if meeting.description:
+        doc.add_paragraph(meeting.description)
+    
+    doc.add_paragraph()  # Spacer
+    
+    # Agenda items
+    if meeting.sections.exists():
+        for section in meeting.sections.all().order_by('order'):
+            doc.add_heading(section.title, level=1)
+            
+            for item in section.items.all().order_by('order'):
+                item_para = doc.add_paragraph()
+                item_para.add_run(f"{item.number or item.order}. {item.title}").bold = True
+                
+                if item.description:
+                    desc_para = doc.add_paragraph(item.description, style='List Bullet')
+                    desc_para.paragraph_format.left_indent = Inches(0.5)
+    else:
+        # No sections, list items directly
+        for item in meeting.agenda_items.all().order_by('order'):
+            item_para = doc.add_paragraph()
+            item_para.add_run(f"{item.number or item.order}. {item.title}").bold = True
+            
+            if item.description:
+                desc_para = doc.add_paragraph(item.description, style='List Bullet')
+                desc_para.paragraph_format.left_indent = Inches(0.3)
+    
+    # Save to BytesIO
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+
+def generate_agenda_packet(meeting: Meeting, format: str = 'pdf', include_attachments: bool = True) -> BytesIO:
+    """
+    Generate complete agenda packet (PDF or DOCX) with optional attachments.
+    
+    Args:
+        meeting: Meeting instance
+        format: 'pdf' or 'docx'
+        include_attachments: Whether to include document attachments
+    
+    Returns:
+        BytesIO buffer with the generated packet
+    """
+    if format.lower() == 'docx':
+        return generate_agenda_docx(meeting)
+    else:
+        return generate_agenda_pdf(meeting)
 
 
 def generate_meeting_ics(meeting: Meeting, base_url: str = 'https://escribe-backend.onrender.com') -> str:

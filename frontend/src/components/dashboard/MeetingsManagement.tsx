@@ -4,6 +4,7 @@ import { apiService } from '../../services/api'
 import { format } from 'date-fns'
 import { toast } from 'react-toastify'
 import MeetingDeadlineStatus from './MeetingDeadlineStatus'
+import { VideoPlayer } from './VideoPlayer'
 
 export default function MeetingsManagement() {
   const queryClient = useQueryClient()
@@ -43,6 +44,38 @@ export default function MeetingsManagement() {
     },
     onError: () => {
       toast.error('Failed to export calendar')
+    },
+  })
+
+  const downloadPacketMutation = useMutation({
+    mutationFn: async ({ meetingId, format }: { meetingId: number; format: 'pdf' | 'docx' }) => {
+      const blob = await apiService.downloadAgendaPacket(meetingId, format)
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `agenda_packet_${meetingId}.${format}`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    },
+    onSuccess: () => {
+      toast.success('Agenda packet downloaded')
+    },
+    onError: () => {
+      toast.error('Failed to download agenda packet')
+    },
+  })
+
+  const sendNotificationMutation = useMutation({
+    mutationFn: async ({ meetingId, type }: { meetingId: number; type: 'published' | 'updated' | 'reminder' }) => {
+      await apiService.sendMeetingNotification(meetingId, type)
+    },
+    onSuccess: () => {
+      toast.success('Notification sent successfully')
+    },
+    onError: () => {
+      toast.error('Failed to send notification')
     },
   })
 
@@ -104,8 +137,36 @@ export default function MeetingsManagement() {
                   >
                     {exportICSMutation.isPending ? 'Exporting...' : '📅 Export Calendar'}
                   </button>
+                  <button
+                    onClick={() => downloadPacketMutation.mutate({ meetingId: meeting.id, format: 'pdf' })}
+                    disabled={downloadPacketMutation.isPending}
+                    className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50"
+                  >
+                    📄 PDF Packet
+                  </button>
+                  <button
+                    onClick={() => downloadPacketMutation.mutate({ meetingId: meeting.id, format: 'docx' })}
+                    disabled={downloadPacketMutation.isPending}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+                  >
+                    📝 DOCX Packet
+                  </button>
+                  {meeting.status === 'published' && (
+                    <button
+                      onClick={() => sendNotificationMutation.mutate({ meetingId: meeting.id, type: 'published' })}
+                      disabled={sendNotificationMutation.isPending}
+                      className="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50"
+                    >
+                      📧 Notify
+                    </button>
+                  )}
                 </div>
               </div>
+              {(meeting.video_url || meeting.video_embed_code) && (
+                <div className="mt-4">
+                  <VideoPlayer meeting={meeting} />
+                </div>
+              )}
             </div>
           ))}
         </div>

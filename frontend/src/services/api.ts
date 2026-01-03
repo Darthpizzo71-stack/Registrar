@@ -260,6 +260,112 @@ class ApiService {
   async deleteUser(id: number): Promise<void> {
     await this.client.delete(`/users/${id}/`)
   }
+
+  // Email Subscriptions
+  async subscribeToEmails(email: string, subscriptionTypes: string[] = ['meeting_published']): Promise<any> {
+    const response = await this.client.post('/meetings/email-subscriptions/subscribe/', {
+      email,
+      subscription_types: subscriptionTypes,
+    })
+    return response.data
+  }
+
+  async unsubscribeFromEmails(token?: string, email?: string): Promise<any> {
+    const response = await this.client.post('/meetings/email-subscriptions/unsubscribe/', {
+      token,
+      email,
+    })
+    return response.data
+  }
+
+  // Electronic Signatures
+  async createSignature(data: {
+    document_type: string
+    document_id: number
+    signature_type: string
+    signature_data?: string
+    signature_image?: File
+  }): Promise<any> {
+    const formData = new FormData()
+    formData.append('document_type', data.document_type)
+    formData.append('document_id', data.document_id.toString())
+    formData.append('signature_type', data.signature_type)
+    if (data.signature_data) {
+      formData.append('signature_data', data.signature_data)
+    }
+    if (data.signature_image) {
+      formData.append('signature_image', data.signature_image)
+    }
+
+    const response = await this.client.post('/meetings/signatures/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return response.data
+  }
+
+  async getSignaturesByDocument(documentType: string, documentId: number): Promise<any[]> {
+    const response = await this.client.get('/meetings/signatures/by_document/', {
+      params: {
+        document_type: documentType,
+        document_id: documentId,
+      },
+    })
+    return response.data
+  }
+
+  // Analytics
+  async getMeetingStats(meetingId?: number, dateFrom?: string, dateTo?: string): Promise<any> {
+    const response = await this.client.get('/meetings/analytics/meeting_stats/', {
+      params: {
+        meeting_id: meetingId,
+        date_from: dateFrom,
+        date_to: dateTo,
+      },
+    })
+    return response.data
+  }
+
+  async getVotingStats(meetingId?: number): Promise<any> {
+    const response = await this.client.get('/meetings/analytics/voting_stats/', {
+      params: {
+        meeting_id: meetingId,
+      },
+    })
+    return response.data
+  }
+
+  async getDocumentAccessStats(documentType?: string, documentId?: number, days?: number): Promise<any> {
+    const response = await this.client.get('/meetings/analytics/document_access/', {
+      params: {
+        document_type: documentType,
+        document_id: documentId,
+        days: days || 30,
+      },
+    })
+    return response.data
+  }
+
+  // Agenda Packet
+  async downloadAgendaPacket(meetingId: number, format: 'pdf' | 'docx' = 'pdf', includeAttachments: boolean = true): Promise<Blob> {
+    const response = await this.client.get(`/meetings/meetings/${meetingId}/agenda_packet/`, {
+      params: {
+        format,
+        attachments: includeAttachments,
+      },
+      responseType: 'blob',
+    })
+    return response.data
+  }
+
+  // Send notification
+  async sendMeetingNotification(meetingId: number, type: 'published' | 'updated' | 'reminder'): Promise<any> {
+    const response = await this.client.post(`/meetings/meetings/${meetingId}/send_notification/`, {
+      type,
+    })
+    return response.data
+  }
 }
 
 export const apiService = new ApiService()

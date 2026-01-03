@@ -36,6 +36,21 @@ class Meeting(models.Model):
     location = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     
+    # Video integration
+    video_url = models.URLField(blank=True, null=True, help_text='YouTube, Vimeo, or direct video URL')
+    video_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('youtube', 'YouTube'),
+            ('vimeo', 'Vimeo'),
+            ('direct', 'Direct URL'),
+            ('embed', 'Embed Code'),
+        ],
+        blank=True,
+        null=True
+    )
+    video_embed_code = models.TextField(blank=True, null=True, help_text='Raw embed code if needed')
+    
     # Compliance tracking
     published_at = models.DateTimeField(null=True, blank=True)
     posting_deadline = models.DateTimeField(null=True, blank=True)  # Legal posting deadline
@@ -273,6 +288,125 @@ class Vote(models.Model):
         return f"{self.official} - {self.get_vote_display()} on {self.agenda_item.title}"
 
 
+class EmailSubscription(models.Model):
+    """
+    Email subscription for meeting notifications.
+    """
+    email = models.EmailField(unique=True)
+    is_active = models.BooleanField(default=True)
+    subscription_types = models.JSONField(
+        default=list,
+        help_text='List of subscription types: meeting_published, agenda_updated, minutes_approved'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    unsubscribe_token = models.CharField(max_length=64, unique=True, blank=True)
+    
+    class Meta:
+        db_table = 'email_subscriptions'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.email} - {', '.join(self.subscription_types) if self.subscription_types else 'None'}"
+    
+    def save(self, *args, **kwargs):
+        if not self.unsubscribe_token:
+            import secrets
+            self.unsubscribe_token = secrets.token_urlsafe(32)
+        super().save(*args, **kwargs)
+
+
+class ElectronicSignature(models.Model):
+    """
+    Electronic signatures for document approvals.
+    """
+    SIGNATURE_TYPES = [
+        ('approval', 'Approval'),
+        ('acknowledgment', 'Acknowledgment'),
+        ('consent', 'Consent'),
+    ]
+    
+    signed_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='signatures')
+    document_type = models.CharField(max_length=50)  # 'minute', 'agenda', etc.
+    document_id = models.IntegerField()  # ID of the document being signed
+    signature_type = models.CharField(max_length=20, choices=SIGNATURE_TYPES, default='approval')
+    signature_image = models.ImageField(upload_to='signatures/', blank=True, null=True)
+    signature_data = models.TextField(blank=True, null=True, help_text='Base64 encoded signature or digital signature')
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=500, blank=True)
+    signed_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'electronic_signatures'
+        ordering = ['-signed_at']
+        unique_together = [['document_type', 'document_id', 'signed_by']]
+    
+    def __str__(self):
+        return f"{self.signed_by} - {self.get_signature_type_display()} - {self.document_type} #{self.document_id}"
+
+
+class MeetingAttendance(models.Model):
+    """
+    Track meeting attendance for analytics.
+    """
+    meeting = models.ForeignKey(Meeting, on_delete=models.CASCADE, related_name='attendances')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='meeting_attendances', null=True, blank=True)
+    attendee_name = models.CharField(max_length=200, blank=True, help_text='For public attendees without accounts')
+    attendee_email = models.EmailField(blank=True)
+    check_in_time = models.DateTimeField(auto_now_add=True)
+    check_out_time = models.DateTimeField(null=True, blank=True)
+    attendance_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('official', 'Elected Official'),
+            ('staff', 'Staff'),
+            ('public', 'Public Attendee'),
+            ('virtual', 'Virtual Attendee'),
+        ],
+        default='public'
+    )
+    
+    class Meta:
+        db_table = 'meeting_attendances'
+        ordering = ['-check_in_time']
+        indexes = [
+            models.Index(fields=['meeting', 'check_in_time']),
+        ]
+    
+    def __str__(self):
+        name = self.user.get_full_name() if self.user else self.attendee_name
+        return f"{name} - {self.meeting.title}"
+
+
+class DocumentAccessLog(models.Model):
+    """
+    Track document access for analytics.
+    """
+    document_type = models.CharField(max_length=50)  # 'agenda', 'minute', 'attachment'
+    document_id = models.IntegerField()
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='document_accesses')
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    accessed_at = models.DateTimeField(auto_now_add=True)
+    access_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('view', 'View'),
+            ('download', 'Download'),
+            ('print', 'Print'),
+        ],
+        default='view'
+    )
+    
+    class Meta:
+        db_table = 'document_access_logs'
+        ordering = ['-accessed_at']
+        indexes = [
+            models.Index(fields=['document_type', 'document_id']),
+            models.Index(fields=['accessed_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.document_type} #{self.document_id} - {self.access_type} at {self.accessed_at}"
 
 
 

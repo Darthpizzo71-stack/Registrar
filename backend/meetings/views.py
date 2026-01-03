@@ -5,16 +5,22 @@ from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from django.db.models import Q
-from .models import Meeting, AgendaSection, AgendaItem, Minute, Vote
+from .models import (
+    Meeting, AgendaSection, AgendaItem, Minute, Vote,
+    EmailSubscription, ElectronicSignature, MeetingAttendance, DocumentAccessLog
+)
 from .serializers import (
     MeetingSerializer, MeetingListSerializer,
     AgendaSectionSerializer, AgendaItemSerializer,
-    MinuteSerializer, VoteSerializer
+    MinuteSerializer, VoteSerializer,
+    EmailSubscriptionSerializer, ElectronicSignatureSerializer
 )
 from .permissions import CanCreateAgenda, CanApproveMinutes, CanSubmitAgendaItems, IsPublicOrAuthenticated
+from .services import send_meeting_notification, generate_rss_feed
 
 
 class MeetingViewSet(viewsets.ModelViewSet):
@@ -84,6 +90,31 @@ class MeetingViewSet(viewsets.ModelViewSet):
         return response
     
     @action(detail=True, methods=['get'])
+    def agenda_packet(self, request, pk=None):
+        """Generate complete agenda packet (PDF or DOCX)."""
+        from django.http import HttpResponse
+        from .utils import generate_agenda_packet
+        
+        meeting = self.get_object()
+        format_type = request.query_params.get('format', 'pdf').lower()
+        include_attachments = request.query_params.get('attachments', 'true').lower() == 'true'
+        
+        if format_type not in ['pdf', 'docx']:
+            return Response(
+                {'error': 'Format must be pdf or docx'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        packet_buffer = generate_agenda_packet(meeting, format=format_type, include_attachments=include_attachments)
+        
+        content_type = 'application/pdf' if format_type == 'pdf' else 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        extension = 'pdf' if format_type == 'pdf' else 'docx'
+        
+        response = HttpResponse(packet_buffer.read(), content_type=content_type)
+        response['Content-Disposition'] = f'attachment; filename="agenda_packet_{meeting.id}.{extension}"'
+        return response
+    
+    @action(detail=True, methods=['get'])
     def ics_export(self, request, pk=None):
         """Export meeting as ICS (iCalendar) file."""
         from django.http import HttpResponse
@@ -121,6 +152,21 @@ class MeetingViewSet(viewsets.ModelViewSet):
         }
         
         return Response(status_info)
+    
+    @action(detail=True, methods=['post'])
+    def send_notification(self, request, pk=None):
+        """Send email notification about meeting."""
+        meeting = self.get_object()
+        notification_type = request.data.get('type', 'published')
+        
+        if notification_type not in ['published', 'updated', 'reminder']:
+            return Response(
+                {'error': 'Invalid notification type'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        send_meeting_notification(meeting, notification_type)
+        return Response({'message': 'Notifications sent'})
 
 
 class AgendaSectionViewSet(viewsets.ModelViewSet):
@@ -327,4 +373,219 @@ class VoteViewSet(viewsets.ModelViewSet):
             }
         
         return Response(result)
+
+
+class EmailSubscriptionViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing email subscriptions."""
+    queryset = EmailSubscription.objects.all()
+    serializer_class = EmailSubscriptionSerializer
+    permission_classes = [AllowAny]  # Public can subscribe/unsubscribe
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['is_active', 'email']
+    
+    @action(detail=False, methods=['post'])
+    def subscribe(self, request):
+        """Subscribe to email notifications."""
+        email = request.data.get('email')
+        subscription_types = request.data.get('subscription_types', ['meeting_published'])
+        
+        if not email:
+            return Response(
+                {'error': 'Email is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        subscription, created = EmailSubscription.objects.get_or_create(
+            email=email,
+            defaults={'subscription_types': subscription_types}
+        )
+        
+        if not created:
+            # Update subscription types
+            subscription.subscription_types = list(set(subscription.subscription_types + subscription_types))
+            subscription.is_active = True
+            subscription.save()
+        
+        serializer = self.get_serializer(subscription)
+        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['post'])
+    def unsubscribe(self, request):
+        """Unsubscribe from email notifications."""
+        token = request.data.get('token')
+        email = request.data.get('email')
+        
+        if not token and not email:
+            return Response(
+                {'error': 'Token or email is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            if token:
+                subscription = EmailSubscription.objects.get(unsubscribe_token=token)
+            else:
+                subscription = EmailSubscription.objects.get(email=email)
+            
+            subscription.is_active = False
+            subscription.save()
+            
+            return Response({'message': 'Successfully unsubscribed'})
+        except EmailSubscription.DoesNotExist:
+            return Response(
+                {'error': 'Subscription not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class ElectronicSignatureViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing electronic signatures."""
+    queryset = ElectronicSignature.objects.all()
+    serializer_class = ElectronicSignatureSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['document_type', 'document_id', 'signed_by', 'signature_type']
+    
+    def perform_create(self, serializer):
+        """Create signature with user info."""
+        serializer.save(
+            signed_by=self.request.user,
+            ip_address=self.request.META.get('REMOTE_ADDR'),
+            user_agent=self.request.META.get('HTTP_USER_AGENT', '')[:500]
+        )
+    
+    @action(detail=False, methods=['get'])
+    def by_document(self, request):
+        """Get all signatures for a document."""
+        doc_type = request.query_params.get('document_type')
+        doc_id = request.query_params.get('document_id')
+        
+        if not doc_type or not doc_id:
+            return Response(
+                {'error': 'document_type and document_id are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        signatures = ElectronicSignature.objects.filter(
+            document_type=doc_type,
+            document_id=doc_id
+        )
+        
+        serializer = self.get_serializer(signatures, many=True)
+        return Response(serializer.data)
+
+
+class AnalyticsViewSet(viewsets.ViewSet):
+    """ViewSet for analytics endpoints."""
+    permission_classes = [IsAuthenticated]
+    
+    @action(detail=False, methods=['get'])
+    def meeting_stats(self, request):
+        """Get statistics for meetings."""
+        from django.db.models import Count, Avg
+        from datetime import datetime, timedelta
+        
+        meeting_id = request.query_params.get('meeting_id')
+        date_from = request.query_params.get('date_from')
+        date_to = request.query_params.get('date_to')
+        
+        queryset = Meeting.objects.all()
+        
+        if meeting_id:
+            queryset = queryset.filter(id=meeting_id)
+        if date_from:
+            queryset = queryset.filter(date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(date__lte=date_to)
+        
+        stats = {
+            'total_meetings': queryset.count(),
+            'published_meetings': queryset.filter(status='published').count(),
+            'by_type': dict(queryset.values('meeting_type').annotate(count=Count('id')).values_list('meeting_type', 'count')),
+            'attendance': {}
+        }
+        
+        # Add attendance stats if meeting_id is provided
+        if meeting_id:
+            try:
+                meeting = Meeting.objects.get(id=meeting_id)
+                attendances = MeetingAttendance.objects.filter(meeting=meeting)
+                stats['attendance'] = {
+                    'total': attendances.count(),
+                    'by_type': dict(attendances.values('attendance_type').annotate(count=Count('id')).values_list('attendance_type', 'count'))
+                }
+            except Meeting.DoesNotExist:
+                pass
+        
+        return Response(stats)
+    
+    @action(detail=False, methods=['get'])
+    def voting_stats(self, request):
+        """Get voting statistics."""
+        from django.db.models import Count
+        
+        meeting_id = request.query_params.get('meeting_id')
+        
+        queryset = Vote.objects.all()
+        
+        if meeting_id:
+            queryset = queryset.filter(agenda_item__meeting_id=meeting_id)
+        
+        stats = {
+            'total_votes': queryset.count(),
+            'by_vote': dict(queryset.values('vote').annotate(count=Count('id')).values_list('vote', 'count')),
+            'top_voters': list(
+                queryset.values('official__username', 'official__first_name', 'official__last_name')
+                .annotate(vote_count=Count('id'))
+                .order_by('-vote_count')[:10]
+            )
+        }
+        
+        return Response(stats)
+    
+    @action(detail=False, methods=['get'])
+    def document_access(self, request):
+        """Get document access analytics."""
+        from django.db.models import Count
+        from datetime import datetime, timedelta
+        
+        doc_type = request.query_params.get('document_type')
+        doc_id = request.query_params.get('document_id')
+        days = int(request.query_params.get('days', 30))
+        
+        date_from = timezone.now() - timedelta(days=days)
+        
+        queryset = DocumentAccessLog.objects.filter(accessed_at__gte=date_from)
+        
+        if doc_type:
+            queryset = queryset.filter(document_type=doc_type)
+        if doc_id:
+            queryset = queryset.filter(document_id=doc_id)
+        
+        stats = {
+            'total_accesses': queryset.count(),
+            'by_type': dict(queryset.values('access_type').annotate(count=Count('id')).values_list('access_type', 'count')),
+            'by_document_type': dict(queryset.values('document_type').annotate(count=Count('id')).values_list('document_type', 'count')),
+            'recent_accesses': list(
+                queryset.order_by('-accessed_at')[:20].values(
+                    'document_type', 'document_id', 'access_type', 'accessed_at'
+                )
+            )
+        }
+        
+        return Response(stats)
+
+
+# RSS Feed View
+class RSSFeedView(APIView):
+    """RSS feed endpoint for meetings."""
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """Generate and return RSS feed."""
+        base_url = request.build_absolute_uri('/')[:-1]
+        rss_xml = generate_rss_feed(base_url=base_url)
+        
+        response = HttpResponse(rss_xml, content_type='application/rss+xml; charset=utf-8')
+        return response
 

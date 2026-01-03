@@ -3,7 +3,10 @@ Serializers for meetings app
 """
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Meeting, AgendaSection, AgendaItem, Minute, Vote
+from .models import (
+    Meeting, AgendaSection, AgendaItem, Minute, Vote,
+    EmailSubscription, ElectronicSignature
+)
 
 User = get_user_model()
 
@@ -48,7 +51,8 @@ class MeetingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Meeting
         fields = ['id', 'title', 'meeting_type', 'status', 'date', 'time', 'location',
-                  'description', 'published_at', 'posting_deadline', 'posted_at',
+                  'description', 'video_url', 'video_type', 'video_embed_code',
+                  'published_at', 'posting_deadline', 'posted_at',
                   'created_by', 'created_by_name', 'created_at', 'updated_at',
                   'sections', 'agenda_items', 'item_count']
         read_only_fields = ['created_at', 'updated_at', 'published_at', 'posted_at']
@@ -94,6 +98,27 @@ class VoteSerializer(serializers.ModelSerializer):
         model = Vote
         fields = ['id', 'agenda_item', 'official', 'official_name', 'vote', 'recorded_at']
         read_only_fields = ['recorded_at']
+
+
+class EmailSubscriptionSerializer(serializers.ModelSerializer):
+    """Serializer for EmailSubscription."""
+    
+    class Meta:
+        model = EmailSubscription
+        fields = ['id', 'email', 'is_active', 'subscription_types', 'created_at', 'updated_at', 'unsubscribe_token']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'unsubscribe_token']
+
+
+class ElectronicSignatureSerializer(serializers.ModelSerializer):
+    """Serializer for ElectronicSignature."""
+    signed_by_name = serializers.CharField(source='signed_by.get_full_name', read_only=True)
+    
+    class Meta:
+        model = ElectronicSignature
+        fields = ['id', 'signed_by', 'signed_by_name', 'document_type', 'document_id',
+                  'signature_type', 'signature_image', 'signature_data',
+                  'ip_address', 'user_agent', 'signed_at']
+        read_only_fields = ['signed_by', 'ip_address', 'user_agent', 'signed_at']
 
 
 
