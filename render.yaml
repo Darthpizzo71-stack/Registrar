@@ -10,7 +10,6 @@ services:
   - type: web
     name: escribe-backend
     runtime: python
-    plan: free
     buildCommand: cd backend && pip install --upgrade pip setuptools && pip install -r requirements.txt && python manage.py collectstatic --noinput
     startCommand: cd backend && gunicorn escribe.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
@@ -32,7 +31,6 @@ services:
   - type: web
     name: escribe-frontend
     runtime: static
-    plan: free
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
     envVars:
