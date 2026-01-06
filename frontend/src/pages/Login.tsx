@@ -49,11 +49,14 @@ export default function Login() {
 
   return (
     <div className="max-w-md mx-auto">
-      <div className="bg-white p-8 rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Login</h1>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+      <div className="bg-white p-8 md:p-10 rounded-2xl shadow-large border border-gray-100">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
+          <p className="text-gray-600">Sign in to access your account</p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label htmlFor="username" className="block text-base font-semibold text-gray-700 mb-3">
               Username
             </label>
             <input
@@ -62,12 +65,13 @@ export default function Login() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full px-5 py-3.5 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-3 focus:ring-primary-300 focus:border-primary-500 transition-all"
+              placeholder="Enter your username"
               aria-required="true"
             />
           </div>
-          <div className="mb-6">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+          <div>
+            <label htmlFor="password" className="block text-base font-semibold text-gray-700 mb-3">
               Password
             </label>
             <input
@@ -76,16 +80,24 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full px-5 py-3.5 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-3 focus:ring-primary-300 focus:border-primary-500 transition-all"
+              placeholder="Enter your password"
               aria-required="true"
             />
           </div>
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-primary-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:from-primary-700 hover:to-primary-800 focus:outline-none focus:ring-3 focus:ring-primary-300 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-medium transition-all transform hover:scale-[1.02] active:scale-[0.98]"
           >
-            {isLoading ? 'Logging in...' : 'Login'}
+            {isLoading ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></span>
+                Logging in...
+              </span>
+            ) : (
+              'Sign In'
+            )}
           </button>
         </form>
       </div>

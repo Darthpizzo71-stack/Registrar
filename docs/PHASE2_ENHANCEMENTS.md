@@ -279,3 +279,5 @@ const docStats = await apiService.getDocumentAccessStats()
 - Signature capture uses canvas-based drawing
 - Video player supports multiple platforms automatically
 
+
+

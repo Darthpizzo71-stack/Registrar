@@ -23,72 +23,76 @@ export default function MeetingDetail() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">{meeting.title}</h1>
-        <p className="text-lg text-gray-600 mb-4">
-          {format(new Date(meeting.date), 'EEEE, MMMM d, yyyy')} at {meeting.time}
-        </p>
-        <p className="text-gray-600">{meeting.location}</p>
+      <div className="bg-gradient-to-br from-primary-50 via-white to-secondary-50 rounded-2xl p-8 mb-10 shadow-medium border border-primary-100">
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">{meeting.title}</h1>
+        <div className="space-y-2">
+          <p className="text-lg text-gray-700 font-medium">
+            📅 {format(new Date(meeting.date), 'EEEE, MMMM d, yyyy')} at {meeting.time}
+          </p>
+          <p className="text-base text-gray-600">
+            📍 {meeting.location}
+          </p>
+        </div>
         {meeting.description && (
-          <p className="mt-4 text-gray-700">{meeting.description}</p>
+          <div className="mt-6 p-4 bg-white rounded-xl border border-gray-100">
+            <p className="text-gray-700 leading-relaxed">{meeting.description}</p>
+          </div>
         )}
       </div>
 
       {meeting.sections && meeting.sections.length > 0 ? (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {meeting.sections.map((section) => (
-            <section key={section.id} className="bg-white p-6 rounded-lg shadow-sm">
-              <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+            <section key={section.id} className="bg-white p-6 md:p-8 rounded-xl shadow-soft border border-gray-100">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 pb-3 border-b-2 border-primary-200">
                 {section.title}
               </h2>
               {section.items && section.items.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-5">
                   {section.items.map((item) => (
                     <div
                       key={item.id}
-                      className="border-l-4 border-primary-500 pl-4 py-2"
+                      className="border-l-4 border-primary-500 pl-6 py-4 bg-primary-50/30 rounded-r-xl"
                     >
-                      <h3 className="text-lg font-medium text-gray-900 mb-1">
-                        {item.number && `${item.number}. `}
-                        {item.title}
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">
+                        {item.number && <span className="text-primary-600">{item.number}.</span>} {item.title}
                       </h3>
-                      <p className="text-gray-600 mb-2">{item.description}</p>
+                      <p className="text-gray-700 mb-3 leading-relaxed">{item.description}</p>
                       {item.department && (
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm font-medium text-primary-700 mb-3">
                           Department: {item.department}
                         </p>
                       )}
                       {item.minute && item.minute.status === 'approved' && (
-                        <div className="mt-3 p-3 bg-gray-50 rounded">
-                          <h4 className="font-medium text-gray-900 mb-1">Minutes:</h4>
-                          <p className="text-sm text-gray-700">{item.minute.text}</p>
+                        <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+                          <h4 className="font-bold text-gray-900 mb-2 text-primary-700">📝 Approved Minutes:</h4>
+                          <p className="text-gray-700 leading-relaxed">{item.minute.text}</p>
                         </div>
                       )}
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500">No items in this section.</p>
+                <p className="text-gray-500 text-center py-8">No items in this section.</p>
               )}
             </section>
           ))}
         </div>
       ) : meeting.agenda_items && meeting.agenda_items.length > 0 ? (
-        <div className="bg-white p-6 rounded-lg shadow-sm">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">Agenda Items</h2>
-          <div className="space-y-4">
+        <div className="bg-white p-6 md:p-8 rounded-xl shadow-soft border border-gray-100">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 pb-3 border-b-2 border-primary-200">Agenda Items</h2>
+          <div className="space-y-5">
             {meeting.agenda_items.map((item) => (
               <div
                 key={item.id}
-                className="border-l-4 border-primary-500 pl-4 py-2"
+                className="border-l-4 border-primary-500 pl-6 py-4 bg-primary-50/30 rounded-r-xl"
               >
-                <h3 className="text-lg font-medium text-gray-900 mb-1">
-                  {item.number && `${item.number}. `}
-                  {item.title}
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  {item.number && <span className="text-primary-600">{item.number}.</span>} {item.title}
                 </h3>
-                <p className="text-gray-600 mb-2">{item.description}</p>
+                <p className="text-gray-700 mb-3 leading-relaxed">{item.description}</p>
                 {item.department && (
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm font-medium text-primary-700">
                     Department: {item.department}
                   </p>
                 )}
@@ -97,7 +101,9 @@ export default function MeetingDetail() {
           </div>
         </div>
       ) : (
-        <p className="text-gray-600">No agenda items available.</p>
+        <div className="bg-white rounded-xl p-12 text-center shadow-soft border border-gray-100">
+          <p className="text-lg text-gray-600">No agenda items available for this meeting.</p>
+        </div>
       )}
     </div>
   )

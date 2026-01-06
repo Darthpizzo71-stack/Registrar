@@ -16,22 +16,24 @@ export default function Layout({ children }: LayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <nav className="container mx-auto px-4 py-4" aria-label="Main navigation">
+    <div className="min-h-screen">
+      <header className="bg-white shadow-soft border-b border-gray-100 sticky top-0 z-50">
+        <nav className="container mx-auto px-4 py-5" aria-label="Main navigation">
           <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-3 text-2xl font-bold text-primary-700 hover:text-primary-800 transition-colors">
+            <Link to="/" className="flex items-center gap-3 group">
               <img 
                 src="/registrar-logo.png" 
                 alt="Registrar Logo" 
-                className="h-10 w-auto"
+                className="h-12 w-auto transition-transform group-hover:scale-105"
               />
-              <span>Registrar</span>
+              <span className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">
+                Registrar
+              </span>
             </Link>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-6">
               <Link
                 to="/meetings"
-                className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium"
+                className="text-gray-700 hover:text-primary-600 px-4 py-2 rounded-lg text-base font-medium transition-colors hover:bg-primary-50"
               >
                 Meetings
               </Link>
@@ -39,24 +41,26 @@ export default function Layout({ children }: LayoutProps) {
                 <>
                   <Link
                     to="/dashboard"
-                    className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium"
+                    className="text-gray-700 hover:text-primary-600 px-4 py-2 rounded-lg text-base font-medium transition-colors hover:bg-primary-50"
                   >
                     Dashboard
                   </Link>
-                  <span className="text-sm text-gray-600">
-                    {user?.first_name} {user?.last_name}
-                  </span>
-                  <button
-                    onClick={handleLogout}
-                    className="bg-primary-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-                  >
-                    Logout
-                  </button>
+                  <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
+                    <span className="text-sm font-medium text-gray-700">
+                      {user?.first_name} {user?.last_name}
+                    </span>
+                    <button
+                      onClick={handleLogout}
+                      className="bg-gradient-to-r from-primary-600 to-primary-700 text-white px-6 py-2.5 rounded-lg text-base font-semibold hover:from-primary-700 hover:to-primary-800 focus:outline-none focus:ring-3 focus:ring-primary-300 focus:ring-offset-2 shadow-soft transition-all transform hover:scale-105 active:scale-95"
+                    >
+                      Logout
+                    </button>
+                  </div>
                 </>
               ) : (
                 <Link
                   to="/login"
-                  className="bg-primary-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                  className="bg-gradient-to-r from-primary-600 to-primary-700 text-white px-6 py-2.5 rounded-lg text-base font-semibold hover:from-primary-700 hover:to-primary-800 focus:outline-none focus:ring-3 focus:ring-primary-300 focus:ring-offset-2 shadow-soft transition-all transform hover:scale-105 active:scale-95"
                 >
                   Login
                 </Link>
@@ -65,9 +69,9 @@ export default function Layout({ children }: LayoutProps) {
           </div>
         </nav>
       </header>
-      <main className="container mx-auto px-4 py-8">{children}</main>
-      <footer className="bg-white border-t mt-12">
-        <div className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-10">{children}</main>
+      <footer className="bg-white border-t border-gray-200 mt-16">
+        <div className="container mx-auto px-4 py-8">
           <p className="text-center text-sm text-gray-600">
             © {new Date().getFullYear()} Registrar - Government Meeting Management System
           </p>

@@ -23,3 +23,5 @@ The logo is referenced as `/registrar-logo.png` in the code. If you use a differ
 - `src/components/Layout.tsx`
 - `src/pages/Home.tsx`
 
+
+

@@ -124,3 +124,5 @@ def generate_rss_feed(meetings=None, base_url='https://escribe-backend.onrender.
     
     return ET.tostring(rss, encoding='unicode', xml_declaration=True)
 
+
+
