@@ -62,8 +62,13 @@ export default function MeetingsManagement() {
     onSuccess: () => {
       toast.success('Agenda packet downloaded')
     },
-    onError: () => {
-      toast.error('Failed to download agenda packet')
+    onError: (error: any) => {
+      console.error('Download error:', error)
+      const errorMessage = error.response?.data?.error || 
+                           error.response?.data?.detail ||
+                           error.message || 
+                           'Failed to download agenda packet'
+      toast.error(errorMessage)
     },
   })
 

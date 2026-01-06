@@ -349,14 +349,49 @@ class ApiService {
 
   // Agenda Packet
   async downloadAgendaPacket(meetingId: number, format: 'pdf' | 'docx' = 'pdf', includeAttachments: boolean = true): Promise<Blob> {
-    const response = await this.client.get(`/meetings/meetings/${meetingId}/agenda_packet/`, {
-      params: {
-        format,
-        attachments: includeAttachments,
-      },
-      responseType: 'blob',
-    })
-    return response.data
+    try {
+      const response = await this.client.get(`/meetings/meetings/${meetingId}/agenda_packet/`, {
+        params: {
+          format,
+          attachments: includeAttachments,
+        },
+        responseType: 'blob',
+      })
+      
+      // Check if the response is actually an error (JSON error response might be returned as blob)
+      if (response.data.type === 'application/json' || response.data.size < 100) {
+        const text = await response.data.text()
+        try {
+          const errorData = JSON.parse(text)
+          throw new Error(errorData.error || errorData.detail || 'Failed to download agenda packet')
+        } catch (parseError) {
+          // If it's not JSON, it might be a small error message
+          if (text.includes('error') || text.includes('Error')) {
+            throw new Error(text || 'Failed to download agenda packet')
+          }
+          // Otherwise, return the blob as-is
+          return new Blob([text], { type: response.headers['content-type'] || 'application/octet-stream' })
+        }
+      }
+      
+      return response.data
+    } catch (error: any) {
+      // If it's already an Error, rethrow it
+      if (error instanceof Error) {
+        throw error
+      }
+      // If it's an Axios error with a blob response that's actually JSON
+      if (error.response?.data && error.response.data instanceof Blob) {
+        const text = await error.response.data.text()
+        try {
+          const errorData = JSON.parse(text)
+          throw new Error(errorData.error || errorData.detail || 'Failed to download agenda packet')
+        } catch {
+          throw new Error('Failed to download agenda packet')
+        }
+      }
+      throw error
+    }
   }
 
   // Send notification

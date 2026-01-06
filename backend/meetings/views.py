@@ -94,25 +94,52 @@ class MeetingViewSet(viewsets.ModelViewSet):
         """Generate complete agenda packet (PDF or DOCX)."""
         from django.http import HttpResponse
         from .utils import generate_agenda_packet
+        import logging
         
-        meeting = self.get_object()
-        format_type = request.query_params.get('format', 'pdf').lower()
-        include_attachments = request.query_params.get('attachments', 'true').lower() == 'true'
+        logger = logging.getLogger(__name__)
         
-        if format_type not in ['pdf', 'docx']:
+        try:
+            meeting = self.get_object()
+            format_type = request.query_params.get('format', 'pdf').lower()
+            include_attachments = request.query_params.get('attachments', 'true').lower() == 'true'
+            
+            if format_type not in ['pdf', 'docx']:
+                return Response(
+                    {'error': 'Format must be pdf or docx'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            packet_buffer = generate_agenda_packet(meeting, format=format_type, include_attachments=include_attachments)
+            
+            if not packet_buffer:
+                logger.error(f"Null buffer returned for meeting {meeting.id}")
+                return Response(
+                    {'error': 'Failed to generate agenda packet: Buffer is null'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            # Get buffer value and check if it's empty
+            buffer_value = packet_buffer.getvalue()
+            if not buffer_value or len(buffer_value) == 0:
+                logger.error(f"Empty buffer generated for meeting {meeting.id}")
+                return Response(
+                    {'error': 'Failed to generate agenda packet: Buffer is empty'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            content_type = 'application/pdf' if format_type == 'pdf' else 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            extension = 'pdf' if format_type == 'pdf' else 'docx'
+            
+            response = HttpResponse(buffer_value, content_type=content_type)
+            response['Content-Disposition'] = f'attachment; filename="agenda_packet_{meeting.id}.{extension}"'
+            return response
+            
+        except Exception as e:
+            logger.exception(f"Error generating agenda packet for meeting {pk}: {str(e)}")
             return Response(
-                {'error': 'Format must be pdf or docx'},
-                status=status.HTTP_400_BAD_REQUEST
+                {'error': f'Failed to generate agenda packet: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        
-        packet_buffer = generate_agenda_packet(meeting, format=format_type, include_attachments=include_attachments)
-        
-        content_type = 'application/pdf' if format_type == 'pdf' else 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        extension = 'pdf' if format_type == 'pdf' else 'docx'
-        
-        response = HttpResponse(packet_buffer.read(), content_type=content_type)
-        response['Content-Disposition'] = f'attachment; filename="agenda_packet_{meeting.id}.{extension}"'
-        return response
     
     @action(detail=True, methods=['get'])
     def ics_export(self, request, pk=None):
