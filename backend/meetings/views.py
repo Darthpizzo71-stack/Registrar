@@ -57,7 +57,7 @@ class MeetingViewSet(viewsets.ModelViewSet):
         return queryset.select_related('created_by').prefetch_related('agenda_items', 'sections')
     
     def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
+        if self.action in ['list', 'retrieve', 'ics_export', 'deadline_status', 'agenda_packet', 'agenda_pdf']:
             return [IsPublicOrAuthenticated()]
         return [IsAuthenticated(), CanCreateAgenda()]
     
@@ -89,7 +89,7 @@ class MeetingViewSet(viewsets.ModelViewSet):
         response['Content-Disposition'] = f'attachment; filename="agenda_{meeting.id}.pdf"'
         return response
     
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], url_path='agenda_packet', url_name='agenda-packet')
     def agenda_packet(self, request, pk=None):
         """Generate complete agenda packet (PDF or DOCX)."""
         from django.http import HttpResponse
